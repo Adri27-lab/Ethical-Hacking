@@ -1,0 +1,59 @@
+import socket
+import sys
+import argparse
+# Primera modificacion
+
+
+def banner(ip, puerto):
+    s = socket.socket() # creación de objeto utilizando IPv4 y TCP
+    s.settimeout(None) # Tiempo indefinido de espera a la respuesta
+    s.connect((ip, puerto))
+    banner_data = s.recv(1024) # recibe hasta 1024 bytes de datos de lo que nos responda el servidor
+    print(banner_data.decode(errors = 'ignore').strip())
+	#MODIFICACION ----------------------------------------------------------------------------------------
+    texto_resultado = banner_data.decode(errors = "ignore").strip()
+    archivo_automatico(texto_resultado)
+    s.close()
+    #-----------------------------------------------------------------------------------------------------
+
+#MODIFICACION --------------------------------------------------------------------------------------------
+def archivo_automatico(texto_resultado, archivo="resultados_banner_grabing.txt"):
+    """
+    Guarda el resultado del escaneo en un archivo de texto.
+    Si el archivo no existe, lo crea. Si ya existe, añade el nuevo resultado al final (>>).
+    """
+    try:
+        # El modo 'a' (append) crea el archivo si no existe, o añade al final si existe.
+        with open(archivo, "a", encoding="utf-8") as f:
+            f.write(texto_resultado)
+            f.write("-" * 40 + "\n") # Separador para que sea más legible si hay varios
+        print(f"[*] Resultado guardado correctamente en '{archivo}'")
+    except Exception as e:
+        print(f"[-] Error al guardar en el archivo: {e}")
+#-------------------------------------------------------------------------------------------------------
+def main():
+    # Inicializamos el parser
+    parser = argparse.ArgumentParser(description="Script para banner grabbing")
+    
+    # Añadimos los argumentos esperados
+    parser.add_argument('-i', '--ip', required=True, help="Indicar la IP objetivo")
+    # Especificar para el puerto, ya que s.connect() requiere un número entero
+    parser.add_argument('-p', '--puerto', type=int, required=True, help="Indicar el puerto objetivo")
+    # Parseamos los argumentos introducidos
+    args = parser.parse_args()
+
+    # Ejecutamos la función pasando los argumentos
+    banner(args.ip, args.puerto)
+
+if __name__ == '__main__':
+	try:
+		main()
+	except KeyboardInterrupt:
+		sys.exit()
+	except TimeoutError:
+		print("[-] Tiempo de conexión agotado.")
+	#Nuevas exceptions
+	except ConnectionRefusedError: #Rechazao de conexion
+		print("[-] Conexión rechazada: El puerto parece estar cerrado.")
+	except socket.error as e: #Error en la red o en el sistema
+		print(f"[-] Error de conexión: {e}")
