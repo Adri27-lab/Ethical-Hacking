@@ -1,0 +1,43 @@
+## Practica 1 Ethical Hacking
+
+# Importación de bibliotecas
+import requests
+from os import path
+import argparse
+import sys
+
+#Indicar los parametros que se aceptaran
+parser = argparse.ArgumentParser()
+parser.add_argument('-t','--target',help="Indicar el dominio objetio")
+parser = parser.parse_args()
+
+def main():
+    if parser.target:
+        if path.exists('subdominios.txt'):
+            lista = open('subdominios.txt','r')
+            lista = lista.read().split('\n')
+            for subdominio in lista:
+                url = "http://"+subdominio+"." + parser.target
+                try:
+                    requests.get(url)
+                except requests.ConnectionError:
+                    pass
+                else:
+                    print('(+) Subdominio Descubierto' + url)
+            for subdominio in lista:
+                url = 'https://' + subdominio + '.' + parser.target 
+                try:
+                    requests.get(url)
+                except requests.ConnectionError:
+                    pass
+                else:
+                    print('(+) Subdominio Descubierto: ' + url)
+        else:
+            print('Por favor coloca un subdominio valido')
+            sys.exit()
+
+if __name__ == '__main__':
+    try:
+        main()
+    except KeyboardInterrupt:
+        sys.exit()
