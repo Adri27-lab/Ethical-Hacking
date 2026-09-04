@@ -1,0 +1,26 @@
+# Practica 4 Ethical Hacking
+# Web Application Detector
+
+#Instalacion de modulo pip install -user wad
+
+import subprocess #modulo para poder ejecutar comandos 
+import argparse #para poder obtener parametros dese la terminal
+import sys #interactuar de forma general con el sistema
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-t','--target', help = 'Introduce la URL del sitio web')
+args = parser.parse_args()
+
+def main():
+    if args.target:
+        subprocess.run('wad -u ' + args.target + ' > tecno.txt', shell = True)
+    
+    else:
+        print("Favor de ingresar un sitio web")
+
+if __name__ == '__main__':
+    try:
+        main()
+    # para Ctrl+c
+    except KeyboardInterrupt: 
+        sys.exit
