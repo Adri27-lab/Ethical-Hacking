@@ -1,0 +1,122 @@
+# Practica 3 Ethical Hacking
+# Banner Grabing con Nmap
+
+
+import nmap          # Importamos python-nmap (instalado via apt como python3-nmap)
+import sys           # Para manejar la salida del programa (sys.exit)
+import argparse      # Para manejar los argumentos de línea de comandos
+
+def banner(ip, puerto):
+    """
+    Realiza el banner grabbing sobre una IP y puerto usando nmap.
+    Utiliza el script NSE 'banner' de nmap, que es equivalente
+    a conectarse y leer la respuesta inicial del servicio.
+    """
+
+    # Creamos el objeto PortScanner, el punto de entrada principal de python-nmap
+    scanner = nmap.PortScanner()
+
+    #-sV Detecta versión del servicio (Service Version Detection)
+    # --script banner  el banner del servicio
+    # -p puerto indicado por el usuario
+    # --open puertos abiertos
+    scanner.scan(
+        hosts=ip,
+        ports=str(puerto),
+        arguments="-sV --script banner --open"
+    )
+
+    # Verificamos que la IP objetivo apareció en los resultados del escaneo
+    if ip not in scanner.all_hosts():
+        # Si la IP no está en los resultados, el host no respondió o está caído
+        print("[-] El host no respondió o no fue detectado por nmap.")
+        return
+
+    # Accedemos a la información del protocolo TCP para el puerto indicado
+    host_info = scanner[ip]
+
+    # Comprobamos que el protocolo TCP existe en los resultados
+    if 'tcp' not in host_info:
+        print("[-] No se encontró información TCP para este host.")
+        return
+
+    # Comprobamos que el puerto específico está en los resultados TCP
+    if puerto not in host_info['tcp']:
+        print(f"[-] El puerto {puerto} no está abierto o no fue detectado.")
+        return
+
+    # Obtenemos el diccionario de datos del puerto específico
+    port_data = host_info['tcp'][puerto]
+
+    # Extraemos el estado del puerto (open, closed, filtered, etc.)
+    estado = port_data.get('state', 'desconocido')
+
+    # Extraemos el nombre del servicio detectado (ssh, http, ftp)
+    servicio = port_data.get('name', 'desconocido')
+
+    # Extraemos la versión del producto/servicio si nmap pudo identificarla
+    version = port_data.get('product', '') + ' ' + port_data.get('version', '')
+
+    # Accedemos al campo 'script' que contiene los resultados de los scripts NSE ejecutados
+    scripts = port_data.get('script', {})
+
+    # Extraemos el banner capturado por el script NSE 'banner'
+    banner_data = scripts.get('banner', '[!] No se capturó banner del servicio.')
+
+    # Construimos el texto del resultado
+    resultado_texto = (
+        f"\n[+] Host      : {ip}\n"
+        f"[+] Puerto    : {puerto}/{estado}\n"
+        f"[+] Servicio  : {servicio}\n"
+        f"[+] Versión   : {version.strip() if version.strip() else 'No detectada'}\n"
+        f"[+] Banner    : {banner_data.strip()}\n"
+    )
+
+    # Mostramos los resultados en terminal
+    print(resultado_texto)
+    
+    # Guardamos los resultados automáticamente en el archivo
+    archivo_automatico(resultado_texto)
+
+def archivo_automatico(texto_resultado, archivo="resultados_nmap_banner_grabing.txt"):
+    """
+    Guarda el resultado del escaneo en un archivo de texto.
+    Si el archivo no existe, lo crea. Si ya existe, añade el nuevo resultado al final (>>).
+    """
+    try:
+        # El modo 'a' (append) crea el archivo si no existe, o añade al final si existe.
+        with open(archivo, "a", encoding="utf-8") as f:
+            f.write(texto_resultado)
+            f.write("-" * 40 + "\n") # Separador para que sea más legible si hay varios
+        print(f"[*] Resultado guardado correctamente en '{archivo}'")
+    except Exception as e:
+        print(f"[-] Error al guardar en el archivo: {e}")
+
+def main():
+    # Inicializamos el parser de argumentos con una descripción del script
+    parser = argparse.ArgumentParser(description="Script para banner grabbing con nmap")
+
+    parser.add_argument('-i', '--ip', required=True, help="Indicar la IP objetivo")
+
+    parser.add_argument('-p','--puerto', dest='puerto', type=int, required=True, help="Indicar el puerto objetivo")
+
+    # Parseamos los argumentos introducidos por el usuario en la línea de comandos
+    args = parser.parse_args()
+
+    # se ejecuta la funcion principal pasando los argumentos capturados
+    banner(args.ip, args.puerto)
+
+
+# Punto de entrada del programa
+if __name__ == '__main__':
+    try:
+        main()                          
+    except KeyboardInterrupt:
+        # para Ctrl+C
+        print("\n[!] Interrupción del usuario. Saliendo...")
+        sys.exit()
+    except nmap.PortScannerError as e:
+        print(f"[-] Error de nmap: {e}")
+    except Exception as e:
+        # cualquier otro error inesperado
+        print(f"[-] Error inesperado: {e}")
