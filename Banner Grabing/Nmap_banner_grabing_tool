@@ -7,33 +7,30 @@ import sys           # Para manejar la salida del programa (sys.exit)
 import argparse      # Para manejar los argumentos de línea de comandos
 
 def banner(ip, puerto):
-    """
-    Realiza el banner grabbing sobre una IP y puerto usando nmap.
-    Utiliza el script NSE 'banner' de nmap, que es equivalente
-    a conectarse y leer la respuesta inicial del servicio.
-    """
-
     # Creamos el objeto PortScanner, el punto de entrada principal de python-nmap
     scanner = nmap.PortScanner()
 
-    #-sV Detecta versión del servicio (Service Version Detection)
-    # --script banner  el banner del servicio
-    # -p puerto indicado por el usuario
-    # --open puertos abiertos
     scanner.scan(
         hosts=ip,
         ports=str(puerto),
         arguments="-sV --script banner --open"
     )
-
+    '''
+    -sV : service version
+    --script banner : llamadaddel script banner mediante el motor Nmap Scripting Engine the Nmap
+    --open : filtra por puertos abiertos
+    '''
+    print(scanner.all_hosts())
     # Verificamos que la IP objetivo apareció en los resultados del escaneo
     if ip not in scanner.all_hosts():
         # Si la IP no está en los resultados, el host no respondió o está caído
         print("[-] El host no respondió o no fue detectado por nmap.")
+        
         return
 
-    # Accedemos a la información del protocolo TCP para el puerto indicado
+    #Guardar diccionario de informacion del objetivo
     host_info = scanner[ip]
+    #print(host_info)
 
     # Comprobamos que el protocolo TCP existe en los resultados
     if 'tcp' not in host_info:
@@ -79,10 +76,6 @@ def banner(ip, puerto):
     archivo_automatico(resultado_texto)
 
 def archivo_automatico(texto_resultado, archivo="resultados_nmap_banner_grabing.txt"):
-    """
-    Guarda el resultado del escaneo en un archivo de texto.
-    Si el archivo no existe, lo crea. Si ya existe, añade el nuevo resultado al final (>>).
-    """
     try:
         # El modo 'a' (append) crea el archivo si no existe, o añade al final si existe.
         with open(archivo, "a", encoding="utf-8") as f:
@@ -94,7 +87,7 @@ def archivo_automatico(texto_resultado, archivo="resultados_nmap_banner_grabing.
 
 def main():
     # Inicializamos el parser de argumentos con una descripción del script
-    parser = argparse.ArgumentParser(description="Script para banner grabbing con nmap")
+    parser = argparse.ArgumentParser()
 
     parser.add_argument('-i', '--ip', required=True, help="Indicar la IP objetivo")
 
@@ -104,6 +97,7 @@ def main():
     args = parser.parse_args()
 
     # se ejecuta la funcion principal pasando los argumentos capturados
+
     banner(args.ip, args.puerto)
 
 
@@ -113,10 +107,9 @@ if __name__ == '__main__':
         main()                          
     except KeyboardInterrupt:
         # para Ctrl+C
-        print("\n[!] Interrupción del usuario. Saliendo...")
         sys.exit()
     except nmap.PortScannerError as e:
-        print(f"[-] Error de nmap: {e}")
+        print(f"Error de nmap: {e}")
     except Exception as e:
         # cualquier otro error inesperado
-        print(f"[-] Error inesperado: {e}")
+        print(f"Error inesperado: {e}")
