@@ -1,0 +1,37 @@
+# Modulos 
+import subprocess # Modulo para poder ejecutar comandos 
+import requests # Para interactura con la web
+import argparse # Para poder obtener parametros dese la terminal
+import sys # Interactuar de forma general con el sistema
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-t','--target', help = 'Introduce la URL del sitio web')
+args = parser.parse_args()
+
+# Funcion principal(main)
+def main():
+    if args.target:
+        palabra = 'cloudflare'# Palabra por la cual queremos filtrar
+        url = requests.get(args.target)
+        cabeceras = dict(url.headers)
+        verificacion = False
+ 
+        for cabecera in cabeceras:
+            if palabra in cabeceras[cabecera].lower():
+                verificacion = True
+                break
+        if verificacion == True:
+            print("EL sitio web tiene CloudFlare")
+        else:
+            print("El sitio web NO tiene CloudFlare")
+    else:
+        print('Introduzca un parametro')
+
+
+# Inicializacion de programa 
+if __name__ == '__main__':
+    try:
+        main()
+    # para Ctrl+c
+    except KeyboardInterrupt: 
+        sys.exit()
