@@ -1,0 +1,36 @@
+# Practica 6: Reconocimiento de Word Press
+
+#Importacion de librerias pertinentes
+import json
+import requests
+import argparse
+import sys
+
+# Manejo de argumentos en terminal
+parser = argparse.ArgumentParser()
+parser.add_argument("-t","--target", help = "Introduce la URL del sitio web")
+args = parser.parse_args()
+
+# Creacion de funcion principal
+def main():
+    if args.target:
+        sitio = str(args.target)
+        peticion = requests.get(sitio + "/wp-json/wp/v2/users")
+
+        with open ("json.txt","wb") as file:
+            file.write(peticion.content)
+
+        with open("json.txt") as json_file:
+            for user in json.load(json_file):
+                users = user["slug"]
+                print(users)
+    else:
+        print("Ingrese una URL para continuar")
+
+# Inicializacion de programa 
+if __name__ == '__main__':
+    try:
+        main()
+    # para Ctrl+c
+    except KeyboardInterrupt: 
+        sys.exit()
