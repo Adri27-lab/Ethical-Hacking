@@ -1,0 +1,146 @@
+# Practica de web scraping de títulos
+# Librerias a utilizar
+import argparse
+import requests
+from lxml import html
+
+# Configuración de cabeceras para las solicitudes HTTP
+cabeceras = {
+    "User-Agent": (
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/115.0.0.0 Safari/537.36"
+    )
+}
+
+# Lista de configuraciones XPath a probar hasta que se encuentre resultados en uno
+patrones_xpath = [
+    {
+        "nombre": "Caso 1 - Línea Directa Portal ",
+        "xpath_texto": "//ul[@id='menu-menu-rapido']//a/text()",
+        "xpath_enlace": "//ul[@id='menu-menu-rapido']//a/@href",
+    },
+    {
+        "nombre": "Caso 2 - UAdeO ",
+        "xpath_texto": "//div[@id='primary-menu']/ul[@id='menu-main-menu']/li[not(contains(@class, 'hidetext'))]/a/text()[normalize-space()]",
+        "xpath_enlace": "//div[@id='primary-menu']/ul[@id='menu-main-menu']/li[not(contains(@class, 'hidetext'))]/a/@href",
+    },
+    {
+        "nombre": "Caso 3 - Ríodoce",
+        "xpath_texto": "//header//nav[contains(@class, 'elementor-nav-menu--main')]//ul/li/a/text()",
+        "xpath_enlace": "//header//nav[contains(@class, 'elementor-nav-menu--main')]//ul/li/a/@href",
+    },
+]
+
+
+def obtener_argumentos():
+    # Parsea y retorna los argumentos de línea de comandos
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-t", "--target", required=True, help="URL del objetivo")
+    return parser.parse_args()
+
+def descargar_html(url):
+    # Realizar la petición HTTP y retorna el árbol HTML parseado
+    try:
+        respuesta = requests.get(url, headers=cabeceras, timeout=10)
+        if respuesta.status_code != 200:
+            print(f"El servidor respondió con el código de estado {respuesta.status_code}")
+        return html.fromstring(respuesta.text)
+    except requests.RequestException as e:
+        print(f"Error al realizar la petición aep {url}: {e}")
+        return None
+
+def extraer_menus(arbol_html):
+    # Se prueban los patrones XPath uno a uno, y se detiene retornando los 
+    #   resultados del primer patrón que encuentre títulos.
+    
+    for patron in patrones_xpath:
+        # Extraer y limpiar títulos
+        textos = arbol_html.xpath(patron["xpath_texto"])
+        menus = [t.strip() for t in textos if t.strip()]
+
+        # Si se encontraron resultados con este XPath, detenemos la búsqueda
+        if menus:
+            enlaces = arbol_html.xpath(patron["xpath_enlace"])
+            return menus, enlaces, patron["nombre"]
+
+    # Si ninguno de los XPath coincidió
+    return [], [], None
+
+def extraer_ubicaciones_uadeo(arbol_html):
+    # Función condicional para uadeo.mx, extrae los enlaces a cada Unidad y la ubicacion.
+
+    print("\n" + "=" * 60)
+    print("### Ubicaciones de Unidades Regionales y Extensiones (UAdeO) ###\n")
+
+    # XPath para obtener los elementos <a> del submenú de Unidades Regionales
+    xpath_unidades = "//li[a[contains(., 'Unidades Regionales')]]/ul/li/a"
+    nodos_ur = arbol_html.xpath(xpath_unidades)
+
+    if not nodos_ur:
+        print("  No se pudieron localizar las Unidades Regionales en el menú.")
+        return
+
+    # XPath para extraer la dirección dentro de la página individual de cada Unidad Regional
+    xpath_direccion = (
+        "//*[contains(text(), 'Encuéntranos')]/following::p[1]/text() | "
+        "//div[contains(@class, 'ur-ubicacion')]//p/text()"
+    )
+
+    for i, nodo in enumerate(nodos_ur, start=1):
+        nombre = nodo.xpath("normalize-space(text())")
+        enlace = nodo.xpath("@href")[0]
+
+        print(f"  [{i}/{len(nodos_ur)}] Consultando: {nombre} ({enlace})...")
+        arbol_sede = descargar_html(enlace)
+
+        if arbol_sede is not None:
+            textos_ubi = arbol_sede.xpath(xpath_direccion)
+            direccion = [t.strip() for t in textos_ubi if t.strip()]
+
+            if direccion:
+                print(f"Ubicación: {direccion[0]}\n")
+            else:
+                print("No se encontró el bloque de ubicación.\n")
+        else:
+            print("Error al descargar la página de la sede.\n")
+            
+
+def mostrar_resultados(url, menus, enlaces, patron_usado):
+    """Imprime los menús y enlaces encontrados en consola."""
+    print(f'### Títulos encontrados en "{url}" ###\n')
+
+    if not menus:
+        print("  No se encontraron menús con las estructuras configuradas.")
+        return
+
+    print(f"  [Estructura detectada: {patron_usado}]\n")
+    for i, (titulo, enlace) in enumerate(zip(menus, enlaces), start=1):
+        print(f"  {i}. {titulo}: {enlace}")
+
+# Creación de nuestra función main
+def main():
+    args = obtener_argumentos()
+    url = args.target
+
+    arbol_html = descargar_html(url)
+    if arbol_html is None:
+        return
+
+    # Flujo general del script
+    menus, enlaces, patron_usado = extraer_menus(arbol_html)
+    mostrar_resultados(url, menus, enlaces, patron_usado)
+
+    # Condicional específico para UAdeO
+    if "uadeo.mx" in url:
+        extraer_ubicaciones_uadeo(arbol_html)
+
+
+# Inicialización de programa
+if __name__ == "__main__":
+    main()
+
+### TARGETS ###
+# https://lineadirectaportal.com
+# https://uadeo.mx
+# https://riodoce.mx/
